@@ -37,7 +37,7 @@ mim install "mmyolo"
 ```
 6. (**OPTIONAL**) Install YOLOv8 by Ultralytics (Do this if you also want to train and evaluate the standalone instance segmentation architecture YOLOv8)
 ```bash
-
+pip install ultralytics
 ```
 7. Install left over dependencies
 ```bash
@@ -51,9 +51,11 @@ pip install git+https://github.com/facebookresearch/segment-anything.git
 wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth 
 ```
 ## Usage
+
 Each script provided handles a specific step in the process of cell segmentation for different models under instance segmentation / object detection.
 
 ### MMYOLO & MMDET (MMYOLOv8 and RTMDet)
+
 1. train.py
    1. For training the object detector and standalone instance segmentation models
    2. Download configuration files from MMYOLO and place in the directory configs/mmyolo/
@@ -100,23 +102,66 @@ python3 evaluate.py --dataset "datasetname" --compare-root "/path/to/config/expo
 
 1. Since training for yolov8 is very simple with the ultralytics package. This is the code:
 ```bash
+# download pre-trained yolov8x-seg file from ultralytics
+wget https://github.com/ultralytics/assets/releases/download/v8.1.0/yolov8x-seg.pt
 
+# now train with dataset and specifying params (change according to your specs)
+CUDA_VISIBLE_DEVICES='0' yolo segment train data=yamls/monuseg.yaml model=yolov8x-seg.pt epochs=550 lr0=0.0003 max_det=1000 batch=2 cache=True project=MoNuSeg name=yolov8_1xb2-500e_monuseg_OG-640x640 single_cls=True optimizer='Adam'
 ```
-
 2. export_yolo.py
-   1. fefe
+   1. create exports (binary images) for YOLO
+   2. Note for the follwing code below:
+        - "--dataset": Same as above
+        - "--dataset-root": Same as above
+        - "--model": path + name of weights trained for the model i.e: "/path/to/config/weights/last.pt"
+        - "--save": path to directory to save exports. i.e: "/path/to/config/"
 ```bash
-
+CUDA_VISIBLE_DEVICES=0 python3 export_yolo.py --dataset MoNuSeg --dataset-root "/path/to/datasets/" --model "/path/to/config/weights/last.pt" --save "/path/to/config/"
 ```
+3. evaluate.py : SAME AS ABOVE
 
-3. evaluate.py
-
-
-
-## EXTRA
+### EXTRA
 
 1. clahe.py
    1. This provides the Contrast Limited Adaptive Histogram Equalisation (CLAHE) augmentation to a dataset
-
-
+   2. Notes for the following command:
+        - "--dataset": Same as above
+        - "--dataset-root": Same as above
+        - "--set": the dataset set you want thresholded (train, val, test)
+        - "--threshold": The CLAHE threshold you want to set. Effective range 0.1 ~ 3.0
+        - "--save": Path to save the augmented dataset
+```bash
+python3 clahe.py --dataset MoNuSeg --dataset-root "/path/to/dataset" --set train --threshold 2.0 --save "/path/to/save/"
+```
 2. manipulations.py
+   1. This script allows for better visual analysis with predictions directly overlapped with ground truth. (Pixels of ground truth and prediction are in different colour and overlap showing where both meet.)
+   2. Notes for the following command:
+        - "--dataset": Same as above
+        - "--dataset-root": Same as above
+        - "--image-path": Path to prediction exports for analysis
+        - "--save": Same as above
+```bash
+python3 manipulations.py --dataset MoNuSeg --dataset-root "/path/to/dataset" --image-path "/path/to/exports" --save "/path/to/save"
+```
+3. visualise_exports.sh
+   1. This script allows for qualitative analysis through two options (outline and overlay). 
+      1. Outline traces the boundaries of nuclei onto the test image to show a better view on how well the prediction actually performed on the image.
+      2. Overlay directly places the segmentation map created by SAM or otherwise onto the test image. The default way to assess how a prediction map performs however, outline gives a better understanding for semantic segmentation (1 class when doing Cell Nuclei Analysis (CNS))
+   2. Notes on the following code:
+        - "--dataset": Same as above
+        - "--dataset-root": Same as above
+        - "--image-root": Same as above
+        - "--overlay/outline": Either overlay or outline can be used at one time.
+        - "--save": Same as above
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 visualise_exports.py --dataset "MoNuSeg" --dataset-root "/path/to/dataset" --image-root "/path/to/prediction/exports" --overlay/outline --save "/path/to/save"
+```
+4. visualise_yolo.py
+   1. Same as visualise_exports.py but only handles YOLO from Ultralytics and can only run outlines
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 visualise_yolo.py --dataset "MoNuSeg" --dataset-root "/path/to/dataset" --model "/path/to/model/weights/last.pt" --save "/path/to/save"
+```
+
+## Uninstall
+
+If conda has been used to install this project, easiest way will be to delete the environment and delete the repo directory. Otherwise, you will need to uninstall each dependency as specified in the install section.
